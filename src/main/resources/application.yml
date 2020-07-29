@@ -11,7 +11,7 @@ spring:
     min-idle: 15
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
@@ -28,9 +28,12 @@ security:
     token:
       secret-key: secret-key
       expire-length: 300000 # 5 minutes duration by default: 5 minutes * 60 seconds * 1000 miliseconds
-      
+    refreshToken:
+      secret-key: secret-key
+      expire-length: 604800000 # 1 week duration by default
+
 UserController:
-  signin: Authenticates user and returns its JWT token.
+  signin: Authenticates user and returns its JWT access token and refresh token.
   signup: Creates user and returns its JWT token
   delete: Deletes specific user by username
   search: Returns specific user by username

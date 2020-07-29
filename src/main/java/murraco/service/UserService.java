@@ -2,6 +2,7 @@ package murraco.service;
 
 import javax.servlet.http.HttpServletRequest;
 
+import murraco.model.Role;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -14,6 +15,8 @@ import murraco.exception.CustomException;
 import murraco.model.User;
 import murraco.repository.UserRepository;
 import murraco.security.JwtTokenProvider;
+
+import java.util.List;
 
 @Service
 public class UserService {
@@ -33,7 +36,10 @@ public class UserService {
   public String signin(String username, String password) {
     try {
       authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-      return jwtTokenProvider.createToken(username, userRepository.findByUsername(username).getRoles());
+      StringBuilder sb = new StringBuilder();
+      sb.append(jwtTokenProvider.createToken(username, userRepository.findByUsername(username).getRoles())+",");
+      sb.append(jwtTokenProvider.createRefreshToken(username, userRepository.findByUsername(username).getRoles()));
+      return sb.toString();
     } catch (AuthenticationException e) {
       throw new CustomException("Invalid username/password supplied", HttpStatus.UNPROCESSABLE_ENTITY);
     }
@@ -43,7 +49,10 @@ public class UserService {
     if (!userRepository.existsByUsername(user.getUsername())) {
       user.setPassword(passwordEncoder.encode(user.getPassword()));
       userRepository.save(user);
-      return jwtTokenProvider.createToken(user.getUsername(), user.getRoles());
+      StringBuilder sb = new StringBuilder();
+      sb.append(jwtTokenProvider.createToken(user.getUsername(), user.getRoles())+",");
+      sb.append(jwtTokenProvider.createRefreshToken(user.getUsername(), user.getRoles()));
+      return sb.toString();
     } else {
       throw new CustomException("Username is already in use", HttpStatus.UNPROCESSABLE_ENTITY);
     }
@@ -65,8 +74,15 @@ public class UserService {
     return userRepository.findByUsername(jwtTokenProvider.getUsername(jwtTokenProvider.resolveToken(req)));
   }
 
-  public String refresh(String username) {
-    return jwtTokenProvider.createToken(username, userRepository.findByUsername(username).getRoles());
+  public String refresh(String refreshToken) {
+      try {
+          jwtTokenProvider.validateToken(refreshToken);
+          String username = jwtTokenProvider.getUsername(refreshToken);
+          List<Role> roles = userRepository.findByUsername(username).getRoles();
+          return jwtTokenProvider.createToken(username, roles);
+      } catch (AuthenticationException e) {
+          throw new CustomException("Invalid Refresh Token", HttpStatus.UNPROCESSABLE_ENTITY);
+      }
   }
 
 }

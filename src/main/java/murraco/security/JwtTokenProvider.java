@@ -36,7 +36,10 @@ public class JwtTokenProvider {
   private String secretKey;
 
   @Value("${security.jwt.token.expire-length:3600000}")
-  private long validityInMilliseconds = 3600000; // 1h
+  private long validityInMilliseconds = 3600000; // 1 hour
+
+  @Value("${security.jwt.refreshToken.expire-length:3600000}")
+  private long rt_validityInMilliseconds = 604800000;// 1 week
 
   @Autowired
   private MyUserDetails myUserDetails;
@@ -61,6 +64,22 @@ public class JwtTokenProvider {
         .signWith(SignatureAlgorithm.HS256, secretKey)//
         .compact();
   }
+
+    public String createRefreshToken(String username, List<Role> roles) {
+
+        Claims claims = Jwts.claims().setSubject(username);
+        claims.put("auth", roles.stream().map(s -> new SimpleGrantedAuthority(s.getAuthority())).filter(Objects::nonNull).collect(Collectors.toList()));
+
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + rt_validityInMilliseconds);
+
+        return Jwts.builder()//
+                .setClaims(claims)//
+                .setIssuedAt(now)//
+                .setExpiration(validity)//
+                .signWith(SignatureAlgorithm.HS256, secretKey)//
+                .compact();
+    }
 
   public Authentication getAuthentication(String token) {
     UserDetails userDetails = myUserDetails.loadUserByUsername(getUsername(token));
